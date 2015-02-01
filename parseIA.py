@@ -3,6 +3,7 @@ import urllib2
 from urlparse import urljoin
 
 
+
 def getURLs(start_url, soup, domain):
 	# container for urls
 	links =[]
@@ -26,7 +27,10 @@ def getURLs(start_url, soup, domain):
 
 def getTitle(soup):
 	if soup.title is not None:
-		return soup.title.string
+		title = soup.title.string
+		#remove leading whitespace and newlines
+		title = title.strip().replace('\n', ' ')
+		return title
 	else:
 		return "Invalid title"
 
@@ -49,36 +53,27 @@ def makeSoup(data):
 	else: 
 		return -1
 
+def get_tree(max_depth, current_depth, url, start_url, domain): 
+	try:
+		data = get_web_page(url)
+		soup = makeSoup(data)
+		# print the title
+		if soup != -1:
+			print(current_depth *"|\t" + getTitle(soup))
+			print(current_depth *"|\t" + "* " + url)
+			current_depth += 1
+			# if less than max depth, get next batch of URLs
+			if current_depth < max_depth:
+				url_list = getURLs(start_url, soup, domain)
+				#current_depth += 1
+				for url in url_list:
+					get_tree(max_depth, current_depth, url, start_url, domain)
+	except UnicodeEncodeError:
+		pass
 
 if __name__ == "__main__":
-
 	domain = "nasa.gov"
 	start_url = "http://www.nasa.gov"
-	data = get_web_page(start_url)
-	soup = makeSoup(data)
-	if soup != -1:
-		depth1 = getURLs(start_url, makeSoup(data), domain)
-	for url in depth1:
-		try: 
-			print(20*'**')
-			#print(url)
-			data = get_web_page(url)
-			soup = makeSoup(data)
-			if soup != -1:
-				print(getTitle(soup))
-				depth2 = getURLs(url, soup, domain)
-		# ignore unicode error. Proobably not the best...
-		except UnicodeEncodeError:
-			pass
-		for url in depth2:
-			try:
-				data = get_web_page(url)
-				soup = makeSoup(data)
-				if soup != -1:
-					print("\t" + getTitle(soup))
-					#depth2 = getURLs(url, makeSoup(data), domain) 
-				#print("+"+ 4*" " + url)
-			except UnicodeEncodeError:
-				pass
-
+	depth = 3
+	get_tree(depth, 0, start_url, start_url, domain)
 
