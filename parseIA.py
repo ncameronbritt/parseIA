@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup
 import urllib2
 from urlparse import urljoin
+import socket
+import ssl
 
 
 
@@ -27,12 +29,15 @@ def getURLs(start_url, soup, domain):
 
 def getTitle(soup):
 	if soup.title is not None:
-		title = soup.title.string
+		title = soup.title
 		#remove leading whitespace and newlines
-		title = title.strip().replace('\n', ' ')
-		return title
+		if title is not None:
+			title = title.string.strip().replace('\n', ' ')
+			return title
+		else:
+			return "Invalid Title"
 	else:
-		return "Invalid title"
+		return "Invalid Title"
 
 def get_web_page(url):
 	try:
@@ -42,7 +47,7 @@ def get_web_page(url):
 		finally:
 			response.close()
 	# ignore errors 	
-	except (urllib2.HTTPError, urllib2.URLError):
+	except (urllib2.HTTPError, urllib2.URLError, socket.timeout, ssl.SSLError):
 		pass
 	
 
@@ -71,9 +76,33 @@ def get_tree(max_depth, current_depth, url, start_url, domain):
 	except UnicodeEncodeError:
 		pass
 
+def write_tree(max_depth, current_depth, url, start_url, domain, file_to_write): 
+	try:
+		data = get_web_page(url)
+		soup = makeSoup(data)
+		# print the title
+		if soup != -1:
+			file_to_write.write(current_depth *"|\t" + getTitle(soup) + "\n")
+			file_to_write.write(current_depth *"|\t" + "* " + url + "\n")
+			print(current_depth *"|\t" + getTitle(soup))
+			print(current_depth *"|\t" + "* " + url)
+			current_depth += 1
+			# if less than max depth, get next batch of URLs
+			if current_depth < max_depth:
+				url_list = getURLs(start_url, soup, domain)
+				#current_depth += 1
+				for url in url_list:
+					write_tree(max_depth, current_depth, url, start_url, domain, file_to_write)
+	except UnicodeEncodeError:
+		pass
+
 if __name__ == "__main__":
 	domain = "nasa.gov"
 	start_url = "http://www.nasa.gov"
-	depth = 3
-	get_tree(depth, 0, start_url, start_url, domain)
+	depth = 4
+	#get_tree(depth, 0, start_url, start_url, domain)
+	f = open("map.txt", "w")
+	write_tree(depth, 0, start_url, start_url, domain, f)
+	f.close()
+
 
